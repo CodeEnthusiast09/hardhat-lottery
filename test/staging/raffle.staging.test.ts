@@ -13,7 +13,7 @@ developmentChains.includes(network.name)
 
           let raffleEntranceFee: bigint;
 
-          let deployer: SignerWithAddress
+          let deployer: SignerWithAddress;
 
           beforeEach(async function () {
               const accounts = await ethers.getSigners();
@@ -55,6 +55,9 @@ developmentChains.includes(network.name)
                   const startingTimeStamp = await raffle.getLastTimeStamp();
 
                   const accounts = await ethers.getSigners();
+
+                  const winnerStartingBalance =
+                      await ethers.provider.getBalance(accounts[0].address);
 
                   console.log("Setting up Listener...");
 
@@ -147,9 +150,6 @@ developmentChains.includes(network.name)
                               await ethers.provider.getBalance(raffle.target),
                           ),
                       );
-
-                      const winnerStartingBalance =
-                          await ethers.provider.getBalance(accounts[0].address);
 
                       console.log("Ok, time to wait...");
                       // and this code WONT complete until our listener has finished listening!

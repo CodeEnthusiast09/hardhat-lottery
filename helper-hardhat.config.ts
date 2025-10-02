@@ -7,7 +7,7 @@ export interface networkConfigItem {
     keepersUpdateInterval?: string;
     raffleEntranceFee?: string;
     callbackGasLimit?: string;
-    vrfCoordinatorV2?: string;
+    vrfCoordinatorV2_5?: string;
 }
 
 export interface networkConfigInfo {
@@ -26,13 +26,14 @@ export const networkConfig: networkConfigInfo = {
     },
     11155111: {
         name: "sepolia",
-        subscriptionId: "4529",
+        subscriptionId:
+            "57458313366285643664447462583623105256718767822971408006239186772063943734529",
         gasLane:
             "0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae", // 30 gwei
         keepersUpdateInterval: "30",
         raffleEntranceFee: ethers.parseEther("0.01").toString(), // 0.01 ETH
         callbackGasLimit: "2500000",
-        vrfCoordinatorV2: "0x9DdfaCa8183c41ad55329BdeeD9F6A8d53168B1B",
+        vrfCoordinatorV2_5: "0x9DdfaCa8183c41ad55329BdeeD9F6A8d53168B1B",
     },
     1: {
         name: "mainnet",

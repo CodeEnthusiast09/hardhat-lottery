@@ -1,9 +1,9 @@
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 import { assert, expect } from "chai";
 import { network, ethers } from "hardhat";
-import { Raffle, VRFCoordinatorV2Mock } from "../../typechain-types";
+import { Raffle, VRFCoordinatorV2_5Mock } from "../../typechain-types";
 import { networkConfig, developmentChains } from "../../helper-hardhat.config";
-import MockModule from "../../ignition/modules/mock";
+import MocksModule from "../../ignition/modules/mock";
 import RaffleModule from "../../ignition/modules/raffle";
 import hre from "hardhat";
 import { Log } from "ethers";
@@ -13,7 +13,7 @@ import { Log } from "ethers";
     : describe("Raffle Unit Tests", function () {
           let raffle: Raffle;
 
-          let vrfCoordinatorV2Mock: VRFCoordinatorV2Mock;
+          let vrfCoordinatorV2_5Mock: VRFCoordinatorV2_5Mock;
 
           let raffleEntranceFee: bigint;
 
@@ -32,19 +32,19 @@ import { Log } from "ethers";
 
               player = accounts[1];
 
-              const mockDeployment = await hre.ignition.deploy(MockModule);
+              const mockDeployment = await hre.ignition.deploy(MocksModule);
 
-              vrfCoordinatorV2Mock =
-                  mockDeployment.vrfCoordinatorV2Mock as unknown as VRFCoordinatorV2Mock;
+              vrfCoordinatorV2_5Mock =
+                  mockDeployment.vrfCoordinatorV2_5Mock as unknown as VRFCoordinatorV2_5Mock;
 
-              const tx = await vrfCoordinatorV2Mock.createSubscription();
+              const tx = await vrfCoordinatorV2_5Mock.createSubscription();
 
               const receipt = await tx.wait();
 
               const event = receipt!.logs
                   .map((log: Log) => {
                       try {
-                          return vrfCoordinatorV2Mock.interface.parseLog(log);
+                          return vrfCoordinatorV2_5Mock.interface.parseLog(log);
                       } catch {
                           return null;
                       }
@@ -60,9 +60,9 @@ import { Log } from "ethers";
 
               const subscriptionId = event.args.subId;
 
-              await vrfCoordinatorV2Mock.fundSubscription(
+              await vrfCoordinatorV2_5Mock.fundSubscription(
                   subscriptionId,
-                  ethers.parseEther("10"),
+                  ethers.parseEther("100"),
               );
 
               // Pull config
@@ -72,8 +72,8 @@ import { Log } from "ethers";
               const raffleDeployment = await hre.ignition.deploy(RaffleModule, {
                   parameters: {
                       RaffleModule: {
-                          vrfCoordinatorV2Address:
-                              await vrfCoordinatorV2Mock.getAddress(),
+                          vrfCoordinatorV2_5Address:
+                              await vrfCoordinatorV2_5Mock.getAddress(),
                           subscriptionId,
                           gasLane: cfg.gasLane!,
                           keepersUpdateInterval: cfg.keepersUpdateInterval!,
@@ -85,7 +85,7 @@ import { Log } from "ethers";
 
               raffle = raffleDeployment.raffle as unknown as Raffle;
 
-              await vrfCoordinatorV2Mock.addConsumer(
+              await vrfCoordinatorV2_5Mock.addConsumer(
                   subscriptionId,
                   await raffle.getAddress(),
               );
@@ -287,7 +287,7 @@ import { Log } from "ethers";
                   const event = txReceipt!.logs
                       .map((log: Log) => {
                           try {
-                              return vrfCoordinatorV2Mock.interface.parseLog(
+                              return vrfCoordinatorV2_5Mock.interface.parseLog(
                                   log,
                               );
                           } catch {
@@ -328,12 +328,18 @@ import { Log } from "ethers";
 
               it("can only be called after performupkeep", async () => {
                   await expect(
-                      vrfCoordinatorV2Mock.fulfillRandomWords(0, raffle.target),
-                  ).to.be.revertedWith("nonexistent request");
+                      vrfCoordinatorV2_5Mock.fulfillRandomWords(
+                          0,
+                          await raffle.getAddress(),
+                      ),
+                  ).to.be.reverted;
 
                   await expect(
-                      vrfCoordinatorV2Mock.fulfillRandomWords(1, raffle.target),
-                  ).to.be.revertedWith("nonexistent request");
+                      vrfCoordinatorV2_5Mock.fulfillRandomWords(
+                          1,
+                          await raffle.getAddress(),
+                      ),
+                  ).to.be.reverted;
               });
 
               // This test is too big...
@@ -361,36 +367,25 @@ import { Log } from "ethers";
 
                   const startingTimeStamp = await raffle.getLastTimeStamp();
 
-                  // This will be more important for our staging tests...
                   await new Promise<void>(async (resolve, reject) => {
                       raffle.once(raffle.filters.WinnerPicked(), async () => {
-                          // assert throws an error if it fails, so we need to wrap
-                          // it in a try/catch so that the promise returns event
-                          // if it fails.
                           try {
-                              // Now lets get the ending values...
                               const recentWinner =
                                   await raffle.getRecentWinner();
-
                               const raffleState = await raffle.getRaffleState();
-
                               const winnerBalance =
                                   await ethers.provider.getBalance(
                                       accounts[2].address,
                                   );
-
                               const endingTimeStamp =
                                   await raffle.getLastTimeStamp();
 
                               await expect(raffle.getPlayer(0)).to.be.reverted;
-
                               assert.equal(
                                   recentWinner.toString(),
                                   accounts[2].address,
                               );
-
                               assert.equal(raffleState.toString(), "0");
-
                               assert.equal(
                                   winnerBalance.toString(),
                                   (
@@ -400,28 +395,24 @@ import { Log } from "ethers";
                                       raffleEntranceFee
                                   ).toString(),
                               );
-
                               assert(endingTimeStamp > startingTimeStamp);
-
                               resolve();
                           } catch (e) {
                               reject(e);
                           }
                       });
-
-                      const tx = await raffle.performUpkeep("0x");
-
-                      const txReceipt = await tx.wait(1);
-
+                      // Get starting balance BEFORE the promise ✅
                       const startingBalance = await ethers.provider.getBalance(
                           accounts[2].address,
                       );
 
-                      // Extract the requestId from the emitted event logs
+                      const tx = await raffle.performUpkeep("0x");
+                      const txReceipt = await tx.wait(1);
+
                       const event = txReceipt!.logs
                           .map((log: Log) => {
                               try {
-                                  return vrfCoordinatorV2Mock.interface.parseLog(
+                                  return vrfCoordinatorV2_5Mock.interface.parseLog(
                                       log,
                                   );
                               } catch {
@@ -442,7 +433,7 @@ import { Log } from "ethers";
 
                       const requestId = event.args.requestId;
 
-                      await vrfCoordinatorV2Mock.fulfillRandomWords(
+                      await vrfCoordinatorV2_5Mock.fulfillRandomWords(
                           requestId,
                           raffle.target,
                       );

@@ -18,7 +18,9 @@ import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
 export default buildModule("RaffleModule", (m) => {
     const deployer = m.getAccount(0);
 
-    const vrfCoordinatorV2Address = m.getParameter("vrfCoordinatorV2Address");
+    const vrfCoordinatorV2_5Address = m.getParameter(
+        "vrfCoordinatorV2_5Address",
+    );
     const subscriptionId = m.getParameter("subscriptionId");
     const gasLane = m.getParameter("gasLane");
     const keepersUpdateInterval = m.getParameter("keepersUpdateInterval");
@@ -28,7 +30,7 @@ export default buildModule("RaffleModule", (m) => {
     const raffle = m.contract(
         "Raffle",
         [
-            vrfCoordinatorV2Address,
+            vrfCoordinatorV2_5Address,
             subscriptionId,
             gasLane,
             keepersUpdateInterval,

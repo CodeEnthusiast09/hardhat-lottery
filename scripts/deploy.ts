@@ -1,6 +1,6 @@
 import hre from "hardhat";
 import { network } from "hardhat";
-import MockModule from "../ignition/modules/mock";
+import MocksModule from "../ignition/modules/mock";
 import RaffleModule from "../ignition/modules/raffle";
 import {
     networkConfig,
@@ -13,17 +13,17 @@ import { Log } from "ethers";
 const FUND_AMOUNT = "1000000000000000000000";
 
 async function main() {
-    let vrfCoordinatorV2Address: string | undefined,
+    let vrfCoordinatorV2_5Address: string | undefined,
         subscriptionId: string | undefined;
 
     if (developmentChains.includes(hre.network.name)) {
         console.log("Local network detected, deploying mocks...");
 
-        const mockResult = await hre.ignition.deploy(MockModule);
+        const mockResult = await hre.ignition.deploy(MocksModule);
 
-        const mock = mockResult.vrfCoordinatorV2Mock;
+        const mock = mockResult.vrfCoordinatorV2_5Mock;
 
-        vrfCoordinatorV2Address = await mock.getAddress();
+        vrfCoordinatorV2_5Address = await mock.getAddress();
 
         const transactionResponse = await mock.createSubscription();
 
@@ -51,8 +51,8 @@ async function main() {
 
         await mock.fundSubscription(subscriptionId, FUND_AMOUNT);
     } else {
-        vrfCoordinatorV2Address =
-            networkConfig[network.config.chainId!]["vrfCoordinatorV2"];
+        vrfCoordinatorV2_5Address =
+            networkConfig[network.config.chainId!]["vrfCoordinatorV2_5"];
 
         subscriptionId =
             networkConfig[network.config.chainId!]["subscriptionId"];
@@ -80,7 +80,7 @@ async function main() {
     const raffleResult = await hre.ignition.deploy(RaffleModule, {
         parameters: {
             RaffleModule: {
-                vrfCoordinatorV2Address: vrfCoordinatorV2Address!,
+                vrfCoordinatorV2_5Address: vrfCoordinatorV2_5Address!,
                 subscriptionId: subscriptionId!,
                 gasLane: cfg.gasLane,
                 keepersUpdateInterval: cfg.keepersUpdateInterval,
@@ -123,7 +123,7 @@ async function main() {
         process.env.ETHERSCAN_API_KEY
     ) {
         await verify(raffleAddress, [
-            vrfCoordinatorV2Address,
+            vrfCoordinatorV2_5Address,
             subscriptionId,
             // ...otherArgs,
             cfg.gasLane,

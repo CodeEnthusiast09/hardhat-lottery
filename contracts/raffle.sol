@@ -2,15 +2,12 @@
 pragma solidity 0.8.28;
 
 import "@chainlink/contracts/src/v0.8/vrf/interfaces/VRFCoordinatorV2Interface.sol";
-import "@chainlink/contracts/src/v0.8/vrf/VRFConsumerBaseV2.sol";
-import "@chainlink/contracts/src/v0.8/automation/interfaces/KeeperCompatibleInterface.sol";
+import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
+import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
+import {AutomationCompatibleInterface} from "@chainlink/contracts/src/v0.8/automation/AutomationCompatible.sol";
 import "hardhat/console.sol";
 
-error Raffle__UpkeepNotNeeded(
-    uint256 currentBalance,
-    uint256 numPlayers,
-    uint256 raffleState
-);
+error Raffle__UpkeepNotNeeded(uint256 currentBalance, uint256 numPlayers, uint256 raffleState);
 error Raffle__TransferFailed();
 error Raffle__SendMoreToEnterRaffle();
 error Raffle__RaffleNotOpen();
@@ -19,7 +16,7 @@ error Raffle__RaffleNotOpen();
  * @notice This contract is for creating a sample raffle contract
  * @dev This implements the Chainlink VRF Version 2
  */
-contract Raffle is VRFConsumerBaseV2, KeeperCompatibleInterface {
+contract Raffle is VRFConsumerBaseV2Plus, AutomationCompatibleInterface {
     /* Type declarations */
     enum RaffleState {
         OPEN,
@@ -27,8 +24,7 @@ contract Raffle is VRFConsumerBaseV2, KeeperCompatibleInterface {
     }
     /* State variables */
     // Chainlink VRF Variables
-    VRFCoordinatorV2Interface private immutable i_vrfCoordinator;
-    uint64 private immutable i_subscriptionId;
+    uint256 private immutable i_subscriptionId;
     bytes32 private immutable i_gasLane;
     uint32 private immutable i_callbackGasLimit;
     uint16 private constant REQUEST_CONFIRMATIONS = 3;
@@ -49,14 +45,13 @@ contract Raffle is VRFConsumerBaseV2, KeeperCompatibleInterface {
 
     /* Functions */
     constructor(
-        address vrfCoordinatorV2,
-        uint64 subscriptionId,
+        address vrfCoordinator,
+        uint256 subscriptionId,
         bytes32 gasLane, // keyHash
         uint256 interval,
         uint256 entranceFee,
         uint32 callbackGasLimit
-    ) VRFConsumerBaseV2(vrfCoordinatorV2) {
-        i_vrfCoordinator = VRFCoordinatorV2Interface(vrfCoordinatorV2);
+    ) VRFConsumerBaseV2Plus(vrfCoordinator) {
         i_gasLane = gasLane;
         i_interval = interval;
         i_subscriptionId = subscriptionId;
@@ -97,12 +92,7 @@ contract Raffle is VRFConsumerBaseV2, KeeperCompatibleInterface {
      */
     function checkUpkeep(
         bytes memory /* checkData */
-    )
-        public
-        view
-        override
-        returns (bool upkeepNeeded, bytes memory /* performData */)
-    {
+    ) public view override returns (bool upkeepNeeded, bytes memory /* performData */) {
         bool isOpen = RaffleState.OPEN == s_raffleState;
         bool timePassed = ((block.timestamp - s_lastTimeStamp) > i_interval);
         bool hasPlayers = s_players.length > 0;
@@ -119,19 +109,20 @@ contract Raffle is VRFConsumerBaseV2, KeeperCompatibleInterface {
         (bool upkeepNeeded, ) = checkUpkeep("");
         // require(upkeepNeeded, "Upkeep not needed");
         if (!upkeepNeeded) {
-            revert Raffle__UpkeepNotNeeded(
-                address(this).balance,
-                s_players.length,
-                uint256(s_raffleState)
-            );
+            revert Raffle__UpkeepNotNeeded(address(this).balance, s_players.length, uint256(s_raffleState));
         }
+
         s_raffleState = RaffleState.CALCULATING;
-        uint256 requestId = i_vrfCoordinator.requestRandomWords(
-            i_gasLane,
-            i_subscriptionId,
-            REQUEST_CONFIRMATIONS,
-            i_callbackGasLimit,
-            NUM_WORDS
+
+        uint256 requestId = s_vrfCoordinator.requestRandomWords(
+            VRFV2PlusClient.RandomWordsRequest({
+                keyHash: i_gasLane,
+                subId: i_subscriptionId,
+                requestConfirmations: REQUEST_CONFIRMATIONS,
+                callbackGasLimit: i_callbackGasLimit,
+                numWords: NUM_WORDS,
+                extraArgs: VRFV2PlusClient._argsToBytes(VRFV2PlusClient.ExtraArgsV1({nativePayment: false}))
+            })
         );
         // Quiz... is this redundant?
         emit RequestedRaffleWinner(requestId);
@@ -141,10 +132,7 @@ contract Raffle is VRFConsumerBaseV2, KeeperCompatibleInterface {
      * @dev This is the function that Chainlink VRF node
      * calls to send the money to the random winner.
      */
-    function fulfillRandomWords(
-        uint256 /* requestId */,
-        uint256[] memory randomWords
-    ) internal override {
+    function fulfillRandomWords(uint256 /* requestId */, uint256[] calldata randomWords) internal override {
         // s_players size 10
         // randomNumber 202
         // 202 % 10 ? what's doesn't divide evenly into 202?
@@ -203,7 +191,7 @@ contract Raffle is VRFConsumerBaseV2, KeeperCompatibleInterface {
         return s_players.length;
     }
 
-    function getSubscriptionId() public view returns (uint64) {
+    function getSubscriptionId() public view returns (uint256) {
         return i_subscriptionId;
     }
 }
