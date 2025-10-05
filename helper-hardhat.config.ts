@@ -20,7 +20,7 @@ export const networkConfig: networkConfigInfo = {
         subscriptionId: "588",
         gasLane:
             "0x474e34a077df58807dbe9c96d3c009b23b3c6d0cce433e59bbf5b34f823bc56c", // 30 gwei
-        keepersUpdateInterval: "30",
+        keepersUpdateInterval: "180",
         raffleEntranceFee: ethers.parseEther("0.01").toString(), // 0.01 ETH
         callbackGasLimit: "500000", // 500,000 gas
     },

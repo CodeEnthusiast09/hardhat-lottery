@@ -2,7 +2,7 @@ import hre from "hardhat";
 import { ethers, network } from "hardhat";
 import fs from "fs";
 import path from "path";
-import { Raffle, VRFCoordinatorV2Mock } from "../typechain-types";
+import { Raffle, VRFCoordinatorV2_5Mock } from "../typechain-types";
 import MockModule from "../ignition/modules/mock";
 import { Log } from "ethers";
 
@@ -10,7 +10,7 @@ async function mockKeepers() {
     const mockDeployment = await hre.ignition.deploy(MockModule);
 
     const vrfCoordinatorV2Mock =
-        mockDeployment.vrfCoordinatorV2Mock as unknown as VRFCoordinatorV2Mock;
+        mockDeployment.vrfCoordinatorV2_5Mock as unknown as VRFCoordinatorV2_5Mock;
 
     const deploymentPath = path.join(
         __dirname,
@@ -98,17 +98,17 @@ async function mockVrf(requestId: bigint, raffle: Raffle) {
 
     const deploymentJson = JSON.parse(fs.readFileSync(deploymentPath, "utf8"));
 
-    const mockAddress = deploymentJson["MocksModule#VRFCoordinatorV2Mock"];
+    const mockAddress = deploymentJson["MocksModule#VRFCoordinatorV2_5Mock"];
 
     if (!mockAddress) {
         throw new Error("Address not found");
     }
 
-    const vrfCoordinatorV2Mock: VRFCoordinatorV2Mock =
+    const vrfCoordinatorV2Mock: VRFCoordinatorV2_5Mock =
         (await ethers.getContractAt(
-            "VRFCoordinatorV2Mock",
+            "VRFCoordinatorV2_5Mock",
             mockAddress,
-        )) as unknown as VRFCoordinatorV2Mock;
+        )) as unknown as VRFCoordinatorV2_5Mock;
 
     await vrfCoordinatorV2Mock.fulfillRandomWords(requestId, raffle.target);
 
